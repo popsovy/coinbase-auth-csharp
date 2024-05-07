@@ -10,6 +10,8 @@ internal class Program
         var keyName = "organizations/{org_id}/apiKeys/{key_id}";
         var privateKeyPem = "-----BEGIN EC PRIVATE KEY-----\nYOUR PRIVATE KEY\n-----END EC PRIVATE KEY-----\n";
 
+        var url = "api.coinbase.com/api/v3/brokerage/product_book";
+
         using var privateKey = LoadPrivateKey(privateKeyPem);
         var securityKey = new ECDsaSecurityKey(privateKey) { KeyId = keyName };
 
@@ -24,12 +26,12 @@ internal class Program
             TokenType = "JWT",
             AdditionalHeaderClaims = new Dictionary<string, object>
             {
-                { "nonce", GenerateRandomHex(16)}
+                { "nonce", Guid.NewGuid()}
             },
             Claims = new Dictionary<string, object>
             {
                 { "sub", keyName },
-                { "uri", "GET api.coinbase.com/api/v3/brokerage/accounts" }
+                { "uri", $"GET {url}" }
             },
             SigningCredentials = new SigningCredentials(securityKey, SecurityAlgorithms.EcdsaSha256)
         });
@@ -37,7 +39,7 @@ internal class Program
         Console.WriteLine($"Generated JWT: {token}");
 
         var client = new HttpClient();
-        var request = new HttpRequestMessage(HttpMethod.Get, "https://api.coinbase.com/api/v3/brokerage/accounts");
+        var request = new HttpRequestMessage(HttpMethod.Get, $"https://{url}?product_id=ETH-USD&limit=100");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         try
@@ -62,13 +64,5 @@ internal class Program
         ecdsa.ImportFromPem(pem);
 
         return ecdsa;
-    }
-
-    static string GenerateRandomHex(int byteLength)
-    {
-        using var rng = RandomNumberGenerator.Create();
-        var bytes = RandomNumberGenerator.GetBytes(byteLength);
-
-        return BitConverter.ToString(bytes).Replace("-", "").ToLower();
     }
 }
